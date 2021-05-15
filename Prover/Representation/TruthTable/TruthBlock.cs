@@ -1,4 +1,4 @@
-﻿namespace Prover.Engine.TTRepresentation
+﻿namespace Prover.Representation.TruthTable
 {
     internal class TruthBlock
     {

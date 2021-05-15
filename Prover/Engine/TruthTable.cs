@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using Prover.Representation;
 using Prover.Representation.Parser;
-using Prover.Engine.TTRepresentation;
+using Prover.Representation.TruthTable;
 
 namespace Prover.Engine
 {

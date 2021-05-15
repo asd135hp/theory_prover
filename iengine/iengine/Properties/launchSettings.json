@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "iengine": {
+      "commandName": "Project",
+      "commandLineArgs": "TT input.txt"
+    }
+  }
+}
