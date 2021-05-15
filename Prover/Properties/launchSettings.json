@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Prover": {
+      "commandName": "Project",
+      "commandLineArgs": "BC input.txt"
+    }
+  }
+}
