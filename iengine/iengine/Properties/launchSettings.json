@@ -2,7 +2,7 @@
   "profiles": {
     "iengine": {
       "commandName": "Project",
-      "commandLineArgs": "TT generic_test2.txt"
+      "commandLineArgs": "BC test2.txt"
     }
   }
 }

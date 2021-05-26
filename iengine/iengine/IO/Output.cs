@@ -11,7 +11,7 @@ namespace IEngine.IO
         {
             ProcessContent(content);
 
-            if (method.ToLower() == "dpll") DPLL = new DPLL(new UniqueSymbols(_kb));
+            if (method.ToLower() == "dpll") DPLL = new DPLL();
             else GetInferenceEngine(method);
         }
 
