@@ -1,4 +1,5 @@
 ﻿using System;
+using Prover.Representation.Parser.PropositionalClause;
 
 namespace IEngine
 {

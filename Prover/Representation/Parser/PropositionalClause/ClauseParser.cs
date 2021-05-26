@@ -3,7 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace Prover.Representation.Parser
+namespace Prover.Representation.Parser.PropositionalClause
 {
     public static class ClauseParser
     {
@@ -148,7 +148,7 @@ namespace Prover.Representation.Parser
             // the operations are spanned through recursion
             if(logicGates.Count > 1)
                 foreach(var logic in OrderedLogic)
-                    for(int i = 0; i < logicGates.Count && logicGates.Count != 1;++i)
+                    for(int i = 0; i < logicGates.Count && logicGates.Count != 1; ++i)
                     {
                         var logicBlock = logicGates[i];
                         if (logicBlock.GetContent(true).ToString() == logic)
@@ -237,5 +237,19 @@ namespace Prover.Representation.Parser
             storedNestedBlocks.Clear();
             return block;
         }
+
+        /// <summary>
+        /// Parse the given clause into a Clause object instead of primitive Block object
+        /// </summary>
+        /// <param name="clause"></param>
+        /// <returns></returns>
+        public static Clause ParseToClause(string clause) => new Clause(Parse(clause));
+
+        /// <summary>
+        /// Parse the given clause into a CNF Clause object instead of primitive Block object
+        /// </summary>
+        /// <param name="clause"></param>
+        /// <returns></returns>
+        public static Clause ParseToCNFClause(string clause) => new CNFClause(Parse(clause));
     }
 }

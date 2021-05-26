@@ -10,25 +10,36 @@ namespace Prover.Engine.Chaining
         {
             // only true if input symbols are Horn clauses but in disjunctive form
             var symbol = ask.GetContent(true).ToString();
-            Path.Insert(0, symbol);
+
+            if (!Path.Contains(symbol)) Path.Insert(0, symbol);
             if (HornClauses.IsFact(symbol)) return true;
 
             var relatedSymbols = HornClauses.GetClause(symbol);
-            bool result = false, firstValue = false;
 
             // terminable because this is the end of the chain but no facts found
             if (relatedSymbols == null) return false;
 
-            foreach (var s in relatedSymbols)
+            bool result = false;
+            foreach(var relatedList in relatedSymbols)
             {
-                if (!firstValue)
+                bool innerResult = false, firstValue = false;
+                foreach (var s in relatedList)
                 {
-                    firstValue = true;
-                    result = KBEntails(new Block(s));
-                    break;
+                    if (!firstValue)
+                    {
+                        firstValue = true;
+                        innerResult = KBEntails(new Block(s));
+                        continue;
+                    }
+                    innerResult &= KBEntails(new Block(s));
                 }
-                result &= KBEntails(new Block(s));
+
+                // one innerResult equals to true means that
+                // this symbol is indeed a fact without anymore consideration
+                result |= innerResult;
             }
+
+            if (result) HornClauses.Facts.Add(symbol);
 
             return result;
         }

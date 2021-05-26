@@ -4,11 +4,16 @@ using Prover.Representation.Parser;
 namespace Prover.Representation
 {
     /// <summary>
-    /// <para>Represents all unique values that knowledge base has,
-    /// which is only for Truth Table engine</para>
+    /// Represents all unique values that knowledge base / a clause has
     /// </summary>
     public class UniqueSymbols
     {
+        public UniqueSymbols(Block rootBlock)
+        {
+            UniqueValues = new List<string>();
+            IterateThroughBlockLists(rootBlock);
+        }
+
         public UniqueSymbols(KnowledgeBase kb)
         {
             UniqueValues = new List<string>();

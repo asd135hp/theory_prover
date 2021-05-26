@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System.Linq;
+using System.Collections.Generic;
 using Prover.Representation.Parser;
 
-namespace Prover.Engine.Rephraser
+namespace Prover.Representation.Rephraser
 {
     public class HornClauses
     {
         public HornClauses()
         {
             Facts = new List<string>();
-            Implications = new Dictionary<string, List<string>>();
+            Implications = new Dictionary<string, List<List<string>>> ();
         }
 
         public HornClauses(List<Block> clauses): this()
@@ -25,9 +26,14 @@ namespace Prover.Engine.Rephraser
                 var symbol = clause.PreviousBlock.GetContent(true).ToString();
                 var unvisited = new List<Block> { clause };
                 if (!Implications.ContainsKey(symbol))
-                    Implications.Add(symbol, new List<string>());
+                    Implications.Add(symbol, new List<List<string>>());
 
-                // recursion using while loop
+                // if a horn clause is pointing at the same symbol as some other horn clauses,
+                // add current clause's requirements to a new list instead of combining them together
+                Implications[symbol].Add(new List<string>());
+
+                // recursion using while loop, flatten down all nested symbols (if any)
+                // as well as pushing clause's requirements for future reference
                 while(unvisited.Count != 0)
                 {
                     BlockIterator.TerminableForEach(unvisited[0], (block) =>
@@ -39,7 +45,7 @@ namespace Prover.Engine.Rephraser
                                     return false;
                                 break;
                             case ContentType.Normal:
-                                Implications[symbol].Add(block.GetContent(true).ToString());
+                                Implications[symbol].Last().Add(block.GetContent(true).ToString());
                                 break;
                             case ContentType.Nested:
                                 unvisited.Add(block.GetContent() as Block);
@@ -50,23 +56,25 @@ namespace Prover.Engine.Rephraser
 
                     unvisited.RemoveAt(0);
                 }
-
-                continue;
             }
         }
 
         public readonly List<string> Facts;
-        public readonly Dictionary<string, List<string>> Implications;
+        public readonly Dictionary<string, List<List<string>>> Implications;
 
         /// <summary>
         /// Get clause from the implied symbol
         /// </summary>
         /// <param name="implicatedSymbol"></param>
         /// <returns>Null on no implications found</returns>
-        public List<string> GetClause(string impliedSymbol)
+        public List<List<string>> GetClause(string impliedSymbol)
         {
             if (!Implications.ContainsKey(impliedSymbol)) return null;
-            return Implications[impliedSymbol];
+
+            // prevent infinite loop
+            var temp = Implications[impliedSymbol];
+            Implications.Remove(impliedSymbol);
+            return temp;
         }
 
         /// <summary>

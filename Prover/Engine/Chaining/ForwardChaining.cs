@@ -15,8 +15,14 @@ namespace Prover.Engine.Chaining
             // meaning this prover (and backward chaining as well) could run as many time as possible
             // in one program session without reinitializing anything
             var facts = new List<string>(HornClauses.Facts);
-            var implications = new Dictionary<string, List<string>>(HornClauses.Implications);
+            var implications = new Dictionary<string, List<List<string>>>(HornClauses.Implications);
             string askSymbol = ask.GetContent(true).ToString();
+
+            if (facts.Contains(askSymbol))
+            {
+                Path.Add(askSymbol);
+                return true;
+            }
 
             // forward chaining from facts
             for(int index = 0; index < facts.Count; ++index)
@@ -25,34 +31,40 @@ namespace Prover.Engine.Chaining
                 Path.Add(fact);
 
                 // repeatedly scanning the trimmed kb for the goal
-                foreach (var (implied, requirements) in implications)
-                    // dig down if there is a fact amongst current requirements for implication
-                    if (requirements.Contains(fact))
+                foreach (var (implied, requirementList) in implications)
+                {
+                    // in case of multiple clauses implying to the same symbol 
+                    foreach(var requirements in requirementList)
                     {
-                        var restOfRequirements = requirements.Where((s) => s != fact);
-                        bool satisfied = true;
-                        foreach (var requirement in restOfRequirements)
-                            if (!facts.Contains(requirement))
-                            {
-                                // no point in searching if one of the requirements is not a fact
-                                satisfied = false;
-                                break;
-                            }
-
-                        // all requirements are facts -> implied symbol is also a fact
-                        if (satisfied)
+                        // dig down if there is a fact amongst current requirements for implication
+                        if (requirements.Contains(fact))
                         {
-                            // trim kb when an implied fact found
-                            facts.Add(implied);
-                            implications.Remove(implied);
+                            var restOfRequirements = requirements.Where((s) => s != fact);
+                            bool satisfied = true;
+                            foreach (var requirement in restOfRequirements)
+                                if (!facts.Contains(requirement))
+                                {
+                                    // no point in searching if one of the requirements is not a fact
+                                    satisfied = false;
+                                    break;
+                                }
 
-                            if (askSymbol == implied)
+                            // all requirements are facts -> implied symbol is also a fact
+                            if (satisfied)
                             {
-                                Path.Add(askSymbol);
-                                return true;
+                                // trim kb when an implied fact found
+                                facts.Add(implied);
+                                implications.Remove(implied);
+
+                                if (askSymbol == implied)
+                                {
+                                    Path.Add(askSymbol);
+                                    return true;
+                                }
                             }
                         }
                     }
+                }
             }
             return false;
         }

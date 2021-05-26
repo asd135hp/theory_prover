@@ -31,6 +31,25 @@ namespace Prover.Representation.Parser
         }
 
         /// <summary>
+        /// Get the number of symbols, regardless connectives, in a given list of blocks
+        /// (either a whole clause or a sub clause)
+        /// </summary>
+        /// <param name="rootBlock"></param>
+        /// <param name="allNestedSymbols"></param>
+        /// <returns></returns>
+        public static int SymbolCount(Block rootBlock, bool allNestedSymbols = true)
+        {
+            int count = 0;
+            ForEach(rootBlock, (block) =>
+            {
+                if (block.ContentType == ContentType.Normal) ++count;
+                if (allNestedSymbols && block.ContentType == ContentType.Nested)
+                    count += SymbolCount(rootBlock);
+            });
+            return count;
+        }
+
+        /// <summary>
         /// Non-terminable forward iteration
         /// </summary>
         /// <param name="eachBlockAction">Action to be taken on each accessing block</param>
@@ -56,7 +75,8 @@ namespace Prover.Representation.Parser
         /// Action to be taken on each accessing block.
         /// Return false to immediately terminate the loop
         /// </param>
-        public static void TerminableForEach(Block rootBlock, Func<Block, bool> eachBlockAction)
+        /// <returns>True on iterating through all blocks, false otherwise</returns>
+        public static bool TerminableForEach(Block rootBlock, Func<Block, bool> eachBlockAction)
         {
             Block currentBlock = null;
 
@@ -64,11 +84,12 @@ namespace Prover.Representation.Parser
             {
                 if (currentBlock == null) currentBlock = rootBlock;
 
-                if(!eachBlockAction.Invoke(currentBlock)) return;
+                if(!eachBlockAction.Invoke(currentBlock)) return false;
 
                 // forward iteration
                 currentBlock = currentBlock.NextBlock;
             }
+            return true;
         }
 
         /// <summary>
@@ -97,7 +118,8 @@ namespace Prover.Representation.Parser
         /// Action to be taken on each accessing block.
         /// Return false to immediately terminate the loop
         /// </param>
-        public static void TerminableReverseForEach(Block rootBlock, Func<Block, bool> eachBlockAction)
+        /// <returns>True on iterating through all blocks, false otherwise</returns>
+        public static bool TerminableReverseForEach(Block rootBlock, Func<Block, bool> eachBlockAction)
         {
             Block currentBlock = null;
 
@@ -105,11 +127,12 @@ namespace Prover.Representation.Parser
             {
                 if (currentBlock == null) currentBlock = rootBlock.PreviousBlock;
 
-                if (!eachBlockAction.Invoke(currentBlock)) return;
+                if (!eachBlockAction.Invoke(currentBlock)) return false;
 
                 // backward iteration
                 currentBlock = currentBlock.PreviousBlock;
             }
+            return true;
         }
 
     }

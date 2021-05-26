@@ -1,7 +1,7 @@
 ﻿using NUnit.Framework;
 using Prover.Representation;
 
-namespace TestAssignment2
+namespace TestProver
 {
     class TestMatchingNestedClauses
     {

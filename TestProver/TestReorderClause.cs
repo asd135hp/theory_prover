@@ -1,7 +1,8 @@
 ﻿using NUnit.Framework;
 using Prover.Representation.Parser;
+using Prover.Representation.Parser.PropositionalClause;
 
-namespace TestAssignment2
+namespace TestProver
 {
     class TestReorderClause
     {

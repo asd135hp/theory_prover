@@ -2,7 +2,7 @@ using NUnit.Framework;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace TestAssignment2
+namespace TestProver
 {
     public class TestParseClauses
     {

@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using Prover.Representation;
 using Prover.Representation.Parser;
-using Prover.Engine.Rephraser;
+using Prover.Representation.Parser.PropositionalClause;
+using Prover.Representation.Rephraser;
 
 namespace Prover.Engine
 {

@@ -10,10 +10,13 @@ namespace IEngine.IO
         public Output(string method, string content)
         {
             ProcessContent(content);
-            GetInferenceEngine(method);
+
+            if (method.ToLower() == "dpll") DPLL = new DPLL(new UniqueSymbols(_kb));
+            else GetInferenceEngine(method);
         }
 
-        private InferenceEngine _engine;
+        private DPLL DPLL = null;
+        private InferenceEngine _engine = null;
         private KnowledgeBase _kb;
         private string _ask;
 
@@ -65,12 +68,11 @@ namespace IEngine.IO
                 "tt" => new TruthTable(new UniqueSymbols(_kb)),
                 "fc" => new ForwardChaining(),
                 "bc" => new BackwardChaining(),
-                "rs" => new ResolutionSolver(),
                 _ => throw new NotSupportedException(
                     $"The method named \"{method}\" is not supported by this program!")
             };
         }
 
-        public void GetResult() => Console.WriteLine(_engine.Prove(_kb, _ask));
+        public void GetResult() => Console.WriteLine(_engine?.Prove(_kb, _ask) ?? DPLL.GetResult(_kb, _ask));
     }
 }

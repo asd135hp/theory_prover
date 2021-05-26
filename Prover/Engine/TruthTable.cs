@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
+using Prover.Representation.TruthTable;
 using Prover.Representation;
 using Prover.Representation.Parser;
-using Prover.Representation.TruthTable;
+using Prover.Representation.Parser.PropositionalClause;
 
 namespace Prover.Engine
 {
@@ -28,8 +28,11 @@ namespace Prover.Engine
                     Models[j].AddTruthBlock(uniqueSymbols[i], value);
                 }
             }
+
+            TruthCount = 0;
         }
 
+        private ulong TruthCount;
         private readonly ulong MaxSize;
         private readonly Dictionary<ulong, Model> Models;
 
@@ -88,28 +91,26 @@ namespace Prover.Engine
             return result;
         }
 
+        /// <summary>
+        /// A last minute addition to this object. It is NOT supposed to belong here!
+        /// </summary>
+        /// <param name="rootBlock"></param>
+        /// <returns></returns>
+        internal Dictionary<ulong, Model> CheckClause(Block rootBlock)
+        {
+            for(ulong i = 0; i < MaxSize; ++i)
+            {
+                var model = Models[i];
+                model.AddTruthBlock("", CheckClauseAgainstModel(rootBlock, model));
+            }
+            return Models;
+        }
+
         public override string Prove(KnowledgeBase kb, string ask)
         {
+            if (!Symbols.UniqueValues.Contains(ask)) return "NO";
             base.Prove(kb, ask);
-
-            var askClause = ClauseParser.Parse(ask);
-
-            if (KBEntails(askClause))
-            {
-                ulong count = 0;
-
-                // count number of times that both ASK's value and
-                // the truth table's final value (TELL) yield true
-                for(ulong i = 0; i < MaxSize; ++i)
-                {
-                    var model = Models[i];
-                    if(CheckClauseAgainstModel(askClause, model) && model.Row.Last().IsTrue)
-                        ++count;
-                }
-
-                return "YES: " + count.ToString();
-            }
-            return "NO";
+            return KBEntails(ClauseParser.Parse(ask)) ? $"YES: {TruthCount}" : "NO";
         }
 
         protected override bool KBEntails(Block ask)
@@ -142,8 +143,11 @@ namespace Prover.Engine
                 concatKB = true;
                 model.AddTruthBlock(kbName, current);
 
-                if (!result && current && model.GetTruthBlock(ask.GetContent(true).ToString()))
-                    result = true;
+                if (current && model.GetTruthBlock(ask.GetContent(true).ToString()))
+                {
+                    if(!result) result = true;
+                    ++TruthCount;
+                }
             }
             
             return result;

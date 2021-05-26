@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Prover.Representation.Parser;
+using Prover.Representation.Parser.PropositionalClause;
 
 namespace Prover.Representation
 {

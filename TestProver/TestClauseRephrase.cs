@@ -1,9 +1,11 @@
 ﻿using NUnit.Framework;
 using System.Collections.Generic;
-using Prover.Engine.Rephraser;
+using Prover.Representation.Rephraser;
+using Prover.Representation.Rephraser.Type;
 using Prover.Representation.Parser;
+using Prover.Representation.Parser.PropositionalClause;
 
-namespace TestAssignment2
+namespace TestProver
 {
     public class TestClauseRephrase
     {
@@ -12,120 +14,111 @@ namespace TestAssignment2
             "a",
             "a=>b",
             "a&(b||c)",
-            "(d=>g&c)||(d&a)",
-            "(b<=>u)&(a||c)"
+            "(b<=>u)&(a||c)",
+            "(d=>g&c)||(d&a)"
         }, ExpectedClauses = new string[]
         {
             "a",
-            "~a||b",
-            "((a&b)||(a&c))",
-            "~d||(~d&c)||(g&~d)||(g&c)||(d&a)",
-            "(~b||u)&(~u||b)&(a||c)"
-        }, StartingHornClauses = new string[]
-        {
-            "a",
-            "a=>b",
-            "a||b=>c",
-            "~a||b||~c",
-            "~a||~b||~c"
-        }, ExpectedHornClauses = new string[]
-        {
-            "a",
-            "a=>b",
-            "(a||b)=>c",
-            "(a&c)=>b",
-            "(a&b&c)=>false"
+            "(~a||b)",
+            "a&(b||c)",
+            "((~b||u)&(~u||b))&(a||c)",
+            "()"
         };
 
         [Test]
         public void TestBiconditionalElimination()
         {
-            Block logic = ClauseParser.Parse("a<=>b").NextBlock,
-                logic1 = ClauseParser.Parse("(a&b)<=>c").NextBlock,
-                logic2 = ClauseParser.Parse("(a&b)<=>(c||d)").NextBlock;
+            RephraserType r1 = new BiconditionalElimination(),
+                r2 = new BiconditionalElimination(),
+                r3 = new BiconditionalElimination();
 
-            Assert.AreEqual(
-                "((~a&~b)||(a&b))",
-                RephrasingLaw.BiconditionalElimination(logic).ToString());
+            r1.AddLeftBlock(new Block("a")).AddRightBlock(new Block("b"));
+            r2.AddLeftBlock(ClauseParser.Parse("(a&b)")).AddRightBlock(new Block("c"));
+            r3.AddLeftBlock(ClauseParser.Parse("(a&b)")).AddRightBlock(ClauseParser.Parse("(c||d)"));
 
-            Assert.AreEqual(
-                "((~(a&b)&~c)||((a&b)&c))",
-                RephrasingLaw.BiconditionalElimination(logic1).ToString());
-
-            Assert.AreEqual(
-                "((~(a&b)&~(c||d))||((a&b)&(c||d)))",
-                RephrasingLaw.BiconditionalElimination(logic2).ToString());
+            Assert.AreEqual("(~a||b)&(a||~b)", r1.Translate().ToString());
+            Assert.AreEqual("(~(a&b)||c)&((a&b)||~c)", r2.Translate().ToString());
+            Assert.AreEqual("(~(a&b)||(c||d))&((a&b)||~(c||d))", r3.Translate().ToString());
         }
 
         [Test]
         public void TestModusPonens()
         {
-            Block logic = ClauseParser.Parse("a=>b").NextBlock,
-                logic1 = ClauseParser.Parse("(a&b)=>c").NextBlock,
-                logic2 = ClauseParser.Parse("(a&b)=>(c||d)").NextBlock;
+            RephraserType r1 = new ModusPonens(),
+                r2 = new ModusPonens(),
+                r3 = new ModusPonens();
 
-            Assert.AreEqual("(~a||b)", RephrasingLaw.ModusPonens(logic).ToString());
-            Assert.AreEqual("(~(a&b)||c)", RephrasingLaw.ModusPonens(logic1).ToString());
-            Assert.AreEqual("(~(a&b)||(c||d))", RephrasingLaw.ModusPonens(logic2).ToString());
+            r1.AddLeftBlock(new Block("a")).AddRightBlock(new Block("b"));
+            r2.AddLeftBlock(ClauseParser.Parse("(a&b)")).AddRightBlock(new Block("c"));
+            r3.AddLeftBlock(ClauseParser.Parse("(a&b)")).AddRightBlock(ClauseParser.Parse("(c||d)"));
+
+            Assert.AreEqual("~a||b", r1.Translate().ToString());
+            Assert.AreEqual("~(a&b)||c", r2.Translate().ToString());
+            Assert.AreEqual("~(a&b)||(c||d)", r3.Translate().ToString());
         }
 
         [Test]
         public void TestTruthfulTheorems()
         {
-            Block logic = ClauseParser.Parse("a||c").NextBlock,
-                logic1 = ClauseParser.Parse("a&false").NextBlock,
-                logic2 = ClauseParser.Parse("a||true").NextBlock;
+            RephraserType r1 = new TruthfulTheorems(),
+                r2 = new TruthfulTheorems(),
+                r3 = new TruthfulTheorems();
 
-            Assert.AreEqual("a||c", RephrasingLaw.TruthfulTheorems(logic).PreviousBlock.ToString());
-            Assert.AreEqual("false", RephrasingLaw.TruthfulTheorems(logic1).PreviousBlock.ToString());
-            Assert.AreEqual("true", RephrasingLaw.TruthfulTheorems(logic2).PreviousBlock.ToString());
+            r1.AddLeftBlock(new Block("a"))
+                .AddLogic(PropositionalLogic.Disjunction)
+                .AddRightBlock(new Block("c"));
+
+            r2.AddLeftBlock(new Block("a"))
+                .AddLogic(PropositionalLogic.Conjunction)
+                .AddRightBlock(new Block("false"));
+
+            r3.AddLeftBlock(ClauseParser.Parse("a"))
+                .AddLogic(PropositionalLogic.Disjunction)
+                .AddRightBlock(ClauseParser.Parse("true"));
+
+            Assert.AreEqual("a||c", r1.Translate().ToString());
+            Assert.AreEqual("false", r2.Translate().ToString());
+            Assert.AreEqual("true", r3.Translate().ToString());
         }
 
         [Test]
         public void TestDeMorgan()
         {
-            Block block = ClauseParser.Parse("~(a&b)"),
-                block1 = ClauseParser.Parse("(~a||~b)"),
-                block2 = ClauseParser.Parse("~(~(a&c)&~b)");
+            RephraserType r1 = new DeMorgan(),
+                r2 = new DeMorgan(),
+                r3 = new DeMorgan();
 
-            Assert.AreEqual("(~a||~b)", RephrasingLaw.DeMorgan(block).ToString());
-            Assert.AreEqual("~(a&b)", RephrasingLaw.DeMorgan(block1).ToString());
-            Assert.AreEqual("((a&c)||b)", RephrasingLaw.DeMorgan(block2).ToString());
+            r1.AddLeftBlock(ClauseParser.Parse("~(a&b)"));
+            r2.AddLeftBlock(ClauseParser.Parse("(~a||~b)"));
+            r3.AddRightBlock(ClauseParser.Parse("~(~(a&c)&~b)"));
+
+            Assert.AreEqual("(~a||~b)", r1.Translate().ToString());
+            Assert.AreEqual("~(a&b)", r2.Translate().ToString());
+            Assert.AreEqual("((a&c)||b)", r3.Translate().ToString());
         }
 
         [Test]
         public void TestDistribution()
         {
-            Block logic = ClauseParser.Parse("a&b").NextBlock,
-                logic1 = ClauseParser.Parse("a||(b&(c||d))").NextBlock,
-                logic2 = ClauseParser.Parse("(a||c)&((b&d)||c)").NextBlock;
+            RephraserType r1 = new Distribution(),
+                r2 = new Distribution(),
+                r3 = new Distribution();
 
-            Assert.AreEqual("a&b", RephrasingLaw.Distribution(logic).PreviousBlock.ToString());
-            Assert.AreEqual(
-                "((a||b)&(a||(c||d)))",
-                RephrasingLaw.Distribution(logic1).PreviousBlock.ToString());
+            r1.AddLeftBlock(new Block("a"))
+                .AddLogic(PropositionalLogic.Conjunction)
+                .AddRightBlock(new Block("b"));
 
-            Assert.AreEqual(
-                "(((a||c)&(b&d))||((a||c)&c))",
-                RephrasingLaw.Distribution(logic2).PreviousBlock.ToString());
-        }
+            r2.AddLeftBlock(new Block("a"))
+                .AddLogic(PropositionalLogic.Disjunction)
+                .AddRightBlock(ClauseParser.Parse("(b&(c||d))"));
 
+            r3.AddLeftBlock(ClauseParser.Parse("(b&d)"))
+                .AddLogic(PropositionalLogic.Disjunction)
+                .AddRightBlock(new Block("c"));
 
-        [Test]
-        public void TestAssociative()
-        {
-            Block clause = ClauseParser.Parse("((a&b)&c)||a"),
-                clause1 = ClauseParser.Parse("(((a&b)&(a&c))&(b&d))||((m&k)&(m&g))"),
-                clause2 = ClauseParser.Parse("(~(~a||b)&a)||((k&~((m&g))||~k)");
-
-            Assert.AreEqual("((a&b)&c)||a", RephrasingLaw.Associative(clause).ToString());
-            Assert.AreEqual(
-                "(((a&b)&c)&d)||((m&k)&g)",
-                RephrasingLaw.Associative(clause1).ToString());
-
-            Assert.AreEqual(
-                "(a&~b)||(k&~(m&g))",
-                RephrasingLaw.Associative(clause2).ToString());
+            Assert.AreEqual("a&b", r1.Translate().ToString());
+            Assert.AreEqual("(a||b)&(a||(c||d))", r2.Translate().ToString());
+            Assert.AreEqual("(c||b)&(c||d)", r3.Translate().ToString());
         }
 
         /// <summary>
@@ -133,31 +126,39 @@ namespace TestAssignment2
         /// Test #2: 
         /// </summary>
         [Test]
+        [Ignore("")]
         public void TestRephrasingNormalClauses()
         {
             int count = 0;
             Assert.DoesNotThrow(() =>
             {
-                foreach (var clause in ClauseRephraser.Rephrase(new List<string>(StartingClauses)))
+                foreach (var clause in new ClauseRephraser().Rephrase(new List<string>(StartingClauses)))
                     Assert.AreEqual(ExpectedClauses[count++], clause);
             });
         }
 
         [Test]
-        public void TestRephrasingHornClauses()
+        [Ignore("")]
+        public void TestGuaranteeCNF()
         {
-            int count = 0;
-
             Assert.DoesNotThrow(() =>
             {
-                var list = ClauseRephraser.Rephrase(
-                    new List<string>(StartingHornClauses),
-                    RephraserType.HornClause
-                );
-
-                foreach (var clause in list)
-                    Assert.AreEqual(ExpectedHornClauses[count++], clause);
+                foreach (var clause in StartingClauses)
+                {
+                    var block = new ClauseRephraser().RephraseIntoBlock(clause);
+                    BlockIterator.ForEach(block, (currentBlock) =>
+                    {
+                        // all normal clauses contain only disjunction
+                        // conjunction only appears when concatenating two or more clauses
+                        if (currentBlock.ContentType == ContentType.Logic)
+                            Assert.AreEqual(
+                                (currentBlock.GetContent() as PropositionalLogic).IsDisjunction,
+                                true
+                            );
+                    });
+                }
             });
+
         }
     }
 }
