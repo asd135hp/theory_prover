@@ -32,7 +32,7 @@ namespace Prover.Engine
                 return (ask == "satisfiable" && result)
                     || (ask == "unsatisfiable" && !result) ? "YES" : "NO";
             }
-            else if (ask == "rawOutput") return Main(clauses) ? "satisfiable" : "unsatisfiable";
+            else if (ask == "rawoutput") return Main(clauses) ? "satisfiable" : "unsatisfiable";
 
             throw new System.NotSupportedException(
                 "Wrong type of ask argument!\n" +
