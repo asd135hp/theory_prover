@@ -12,20 +12,71 @@ namespace Prover.Engine
         public TruthTable(UniqueSymbols symbols): base(symbols)
         {
             var uniqueSymbols = symbols.UniqueValues;
-            ulong modelCount = MaxSize = (ulong)Math.Pow(2, uniqueSymbols.Count);
+            int symbolsCount = uniqueSymbols.Count;
+            Models = new Dictionary<ulong, Dictionary<ulong, Model>>();
 
-            // populate truth table's models
-            Models = new Dictionary<ulong, Model>();
-            for(int i = 0; i < uniqueSymbols.Count; i++)
+            if (symbolsCount <= 64)
             {
-                modelCount /= 2;
-                bool value = false;
-                for(ulong j = 0; j < MaxSize; j++)
-                {
-                    if (i == 0) Models[j] = new Model(j);
+                ulong modelCount = MaxSize = (ulong)Math.Pow(2, symbolsCount);
+                Models[0] = new Dictionary<ulong, Model>();
+                MaxPartitions = 1;
 
-                    if (j % modelCount == 0) value = !value; 
-                    Models[j].AddTruthBlock(uniqueSymbols[i], value);
+                // populate truth table's models
+                for (int i = 0; i < symbolsCount; i++)
+                {
+                    modelCount /= 2;
+                    bool value = false;
+                    for (ulong j = 0; j < MaxSize; j++)
+                    {
+                        if (i == 0) Models[0][j] = new Model(j);
+
+                        if (j % modelCount == 0) value = !value;
+                        Models[0][j].AddTruthBlock(uniqueSymbols[i], value);
+                    }
+                }
+            }
+            else if (symbolsCount <= 128)
+            {
+                // the truth table is too big to verify its validity!
+                // initialize partition size
+                MaxPartitions = (ulong)Math.Pow(2, symbolsCount - 64);
+                for (ulong k = 0; k < MaxPartitions; ++k) Models[k] = new Dictionary<ulong, Model>();
+
+                // initialize models
+                double modelCount = MaxPartitions;
+                for (int i = 0; i < symbolsCount; ++i)
+                {
+                    modelCount /= 2.0;
+                    bool value = false;
+                    if (modelCount >= 1.0)
+                    {
+                        for (double j = 0; j < MaxPartitions; ++j)
+                        {
+                            var model = Models[(ulong)j];
+                            for (ulong k = 0; k < ulong.MaxValue; ++k)
+                            {
+                                if (i == 0) model[k] = new Model(k);
+
+                                if (j % modelCount == 0) value = !value;
+                                model[k].AddTruthBlock(uniqueSymbols[i], value);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // for modelCount = 1.0 or now it is 0.5
+                    ulong switchingValue = (ulong)(ulong.MaxValue * modelCount);
+                    for (double j = 0; j < MaxPartitions; ++j)
+                    {
+                        var model = Models[(ulong)j];
+                        for (ulong k = 0; k < ulong.MaxValue; ++k)
+                        {
+                            if (i == 0) model[k] = new Model(k);
+
+                            if (k % switchingValue == 0) value = !value;
+                            model[k].AddTruthBlock(uniqueSymbols[i], value);
+                        }
+                    }
                 }
             }
 
@@ -33,8 +84,9 @@ namespace Prover.Engine
         }
 
         private ulong TruthCount;
+        private readonly ulong MaxPartitions;
         private readonly ulong MaxSize;
-        private readonly Dictionary<ulong, Model> Models;
+        private readonly Dictionary<ulong, Dictionary<ulong, Model>> Models;
 
         /// <summary>
         /// Check clause (a&b) against one model (row) in truth table
@@ -93,17 +145,26 @@ namespace Prover.Engine
 
         /// <summary>
         /// A last minute addition to this object. It is NOT supposed to belong here!
+        /// However, here is a real question:
+        /// what is the odd of an user inputting 64 unique symbols into one single clause?
         /// </summary>
         /// <param name="rootBlock"></param>
         /// <returns></returns>
         internal Dictionary<ulong, Model> CheckClause(Block rootBlock)
         {
+            if (Symbols.UniqueValues.Count > 64)
+                throw new NotSupportedException("Unfortunately, you have hit the odd of " +
+                    "inputting more than 64 unique symbols into one clause.\n" +
+                    "Please consider decrease the amount of unique symbols " +
+                    "that any of your clauses have to a maximum of 64 unique symbols!");
+
+            var modelFor64UniqueSymbols = Models[0];
             for(ulong i = 0; i < MaxSize; ++i)
             {
-                var model = Models[i];
+                var model = modelFor64UniqueSymbols[i];
                 model.AddTruthBlock("", CheckClauseAgainstModel(rootBlock, model));
             }
-            return Models;
+            return modelFor64UniqueSymbols;
         }
 
         public override string Prove(KnowledgeBase kb, string ask)
@@ -115,59 +176,47 @@ namespace Prover.Engine
 
         protected override bool KBEntails(Block ask)
         {
+            if(Symbols.UniqueValues.Count > 128)
+                throw new NotSupportedException("Could not do a truth table with more than 128 unique symbols!");
+
+            // start entailment
             bool result = false, concatKB = false, firstValue, current;
             string kbName = "";
 
-            for(ulong i = 0; i < MaxSize; ++i)
-            {
-                var model = Models[i];
-                current = false;
-                firstValue = true;
-
-                foreach(var knowledge in KB.Knowledges)
+            for(ulong i = 0; i < MaxPartitions; ++i)
+                for (ulong j = 0; j < MaxSize; ++j)
                 {
-                    bool value = CheckClauseAgainstModel(knowledge, model);
+                    var model = Models[i][j];
+                    current = false;
+                    firstValue = true;
 
-                    if (!concatKB) kbName += knowledge.ToString() + PropositionalLogic.CONJUNCTION;
-                    if (firstValue)
+                    foreach (var knowledge in KB.Knowledges)
                     {
-                        current = value;
-                        firstValue = false;
-                        continue;
+                        bool value = CheckClauseAgainstModel(knowledge, model);
+
+                        if (!concatKB) kbName += knowledge.ToString() + PropositionalLogic.CONJUNCTION;
+                        if (firstValue)
+                        {
+                            current = value;
+                            firstValue = false;
+                            continue;
+                        }
+
+                        // clauses are separated by ";", which is actually an AND operation
+                        current = Verify(current, PropositionalLogic.CONJUNCTION, value);
                     }
 
-                    // clauses are separated by ";", which is actually an AND operation
-                    current = Verify(current, PropositionalLogic.CONJUNCTION, value);
-                }
-                
-                concatKB = true;
-                model.AddTruthBlock(kbName, current);
+                    concatKB = true;
+                    model.AddTruthBlock(kbName, current);
 
-                if (current && model.GetTruthBlock(ask.GetContent(true).ToString()))
-                {
-                    if(!result) result = true;
-                    ++TruthCount;
+                    if (current && model.GetTruthBlock(ask.GetContent(true).ToString()))
+                    {
+                        if (!result) result = true;
+                        ++TruthCount;
+                    }
                 }
-            }
-            
+
             return result;
-        }
-
-        /// <summary>
-        /// Debugging method
-        /// </summary>
-        /// <returns>Representing number of truth blocks generated in each model</returns>
-        public override string ToString()
-        {
-            string result = $"There are {MaxSize} models in total: [\n";
-            for(ulong i = 0; i < MaxSize; ++i)
-            {
-                var model = Models[i];
-                result += $"{model.Row.Count}:";
-                foreach(var block in model.Row) result += (block.IsTrue ? 'T' : 'F');
-                result += ",\n";
-            }
-            return $"{result.TrimEnd(',', '\n').Trim()}]";
         }
     }
 }
