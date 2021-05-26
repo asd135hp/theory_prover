@@ -18,17 +18,18 @@ namespace Prover.Engine.Chaining
             var implications = new Dictionary<string, List<List<string>>>(HornClauses.Implications);
             string askSymbol = ask.GetContent(true).ToString();
 
+            // edge case elimination
             if (facts.Contains(askSymbol))
             {
                 Path.Add(askSymbol);
                 return true;
             }
 
-            // forward chaining from facts
+            // forward chaining from facts (given + implied)
             for(int index = 0; index < facts.Count; ++index)
             {
                 var fact = facts[index];
-                Path.Add(fact);
+                if (!Path.Contains(fact)) Path.Add(fact);
 
                 // repeatedly scanning the trimmed kb for the goal
                 foreach (var (implied, requirementList) in implications)
@@ -42,12 +43,16 @@ namespace Prover.Engine.Chaining
                             var restOfRequirements = requirements.Where((s) => s != fact);
                             bool satisfied = true;
                             foreach (var requirement in restOfRequirements)
+                            {
                                 if (!facts.Contains(requirement))
                                 {
                                     // no point in searching if one of the requirements is not a fact
                                     satisfied = false;
                                     break;
                                 }
+                                // this is now a fact
+                                if (!Path.Contains(requirement)) Path.Add(requirement);
+                            }
 
                             // all requirements are facts -> implied symbol is also a fact
                             if (satisfied)
@@ -58,7 +63,7 @@ namespace Prover.Engine.Chaining
 
                                 if (askSymbol == implied)
                                 {
-                                    Path.Add(askSymbol);
+                                    Path.Add(implied);
                                     return true;
                                 }
                             }

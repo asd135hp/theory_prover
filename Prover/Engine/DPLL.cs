@@ -42,6 +42,9 @@ namespace Prover.Engine
         /// <summary>
         /// Core functionality of DPLL
         /// </summary>
+        /// <see cref="https://www.cs.cmu.edu/~15414/f17/lectures/10-dpll.pdf"/>
+        /// <see cref="https://www.cs.miami.edu/home/geoff/Courses/CSC648-12S/Content/DPLL.shtml"/>
+        /// <see cref="https://www.inf.ufpr.br/dpasqualin/d3-dpll/"/>
         /// <param name="clauses"></param>
         /// <returns></returns>
         private bool Main(List<Block> clauses)
