@@ -262,6 +262,9 @@
         {
             string result = "";
 
+            if(NextBlock == null && PreviousBlock == null)
+                return (IsNegated ? PropositionalLogic.NEGATION : "") + GetContent(true);
+
             // forward iterate through the list from this block onwards
             BlockIterator.ForEach(this, (currentBlock) =>
             {

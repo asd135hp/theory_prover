@@ -50,7 +50,7 @@ namespace Prover.Engine.Chaining
                                     satisfied = false;
                                     break;
                                 }
-                                // this is now a fact
+								
                                 if (!Path.Contains(requirement)) Path.Add(requirement);
                             }
 

@@ -16,7 +16,7 @@ namespace Prover.Engine
         /// <param name="kb"></param>
         /// <param name="ask"></param>
         /// <returns></returns>
-        public string GetResult(KnowledgeBase kb, string ask)
+        public virtual string GetResult(KnowledgeBase kb, string ask)
         {
             // could be extended to handle really big dataset with millions of symbols
             // example: List<List<Block>> contains 2 billion ^ 2 slots
@@ -30,14 +30,16 @@ namespace Prover.Engine
             {
                 bool result = Main(clauses);
                 return (ask == "satisfiable" && result)
-                    || (ask == "unsatisfiable" && !result) ? "YES" : "NO";
+                    || (ask == "unsatisfiable" && !result) ? $"YES: {Path}" : "NO";
             }
-            else if (ask == "rawoutput") return Main(clauses) ? "satisfiable" : "unsatisfiable";
+            else if (ask == "rawoutput") return Main(clauses) ? $"SATISFIABLE: {Path}" : "UNSATISFIABLE";
 
             throw new System.NotSupportedException(
                 "Wrong type of ask argument!\n" +
                 "Available ask argument: satisfiable, unsatisfiable or rawOutput");
         }
+
+        private string Path;
 
         /// <summary>
         /// Core functionality of DPLL
@@ -47,36 +49,44 @@ namespace Prover.Engine
         /// <see cref="https://www.inf.ufpr.br/dpasqualin/d3-dpll/"/>
         /// <param name="clauses"></param>
         /// <returns></returns>
-        private bool Main(List<Block> clauses)
+        private bool Main(List<Block> clauses, string path = "")
         {
-            if (clauses.Count == 0) return true;
-
-            var unitClauses = new List<Block>(clauses.Where((clause) =>
+            List<Block> unitClauses;
+            do
             {
-                return clause.NextBlock == clause && clause.PreviousBlock == clause;
-            }));
-
-            if (clauses.Count % 2 == 0 && unitClauses.Count == clauses.Count)
-            {
-                string checkingContent = "";
-                int countPositive = 0, countNegative = 0;
-                foreach (var clause in unitClauses)
+                // is there an empty clause or not
+                if (clauses.Contains(null)) return false;
+                
+                // if clauses list is empty, this loop will do nothing and automatically break
+                unitClauses = new List<Block>(clauses.Where((clause) =>
                 {
-                    var content = clause.GetContent(true).ToString();
-                    if (checkingContent.Length == 0) checkingContent = content;
-                    else if (content != checkingContent) break;
+                    return clause.NextBlock == clause && clause.PreviousBlock == clause;
+                }));
 
-                    if (clause.IsNegated) ++countNegative;
-                    else ++countPositive;
+                foreach (var unitClause in unitClauses)
+                {
+                    path = (path.Length == 0 ? "" : $"{path}, ") + unitClause;
+                    RemoveSymbol(clauses, unitClause, false);
                 }
-                if (countPositive != 0 && countNegative == countPositive) return false;
+
+            } while (unitClauses.Count != 0);
+
+            // store path when it is true
+            if (clauses.Count == 0)
+            {
+                Path = path;
+                return true;
             }
+            
+            // is there an empty clause or not
+            if (clauses.Contains(null)) return false;
 
-            Block selected = unitClauses.Count == 0 ? clauses[0].PreviousBlock : unitClauses[0],
+            Block selected = clauses[0],
                 symbol = new Block(selected.GetContent(true).ToString(), selected.IsNegated);
+            path = (path.Length == 0 ? "" : $"{path}, ") + symbol;
 
-            return Main(RemoveSymbol(clauses, symbol))
-                || Main(RemoveSymbol(clauses, symbol.SetNegation(!symbol.IsNegated)));
+            return Main(RemoveSymbol(clauses, symbol), path)
+                || Main(RemoveSymbol(clauses, symbol.SetNegation(!symbol.IsNegated)), path);
         }
 
         /// <summary>
@@ -86,12 +96,20 @@ namespace Prover.Engine
         /// <param name="clauses"></param>
         /// <param name="symbol"></param>
         /// <returns></returns>
-        private List<Block> RemoveSymbol(List<Block> clauses, Block symbol)
+        private List<Block> RemoveSymbol(List<Block> clauses, Block symbol, bool newList = true)
         {
+            // must specify a fresh copy on demand here because blocks are also objects
+            // that have memory addresses
+            var result = !newList ? clauses :
+                                    clauses.Select((b) => ClauseParser.Parse(b.ToString())).ToList();
+
             string rawSymbol = symbol.GetContent(true).ToString();
-            for (int i = 0; i < clauses.Count; ++i)
+            for (int i = 0; i < result.Count; ++i)
             {
-                var root = clauses[i];
+                var root = result[i];
+                if (root == null) continue;
+
+                // remove either a symbol or the whole rootBlock
                 BlockIterator.TerminableForEach(root, (currentBlock) =>
                 {
                     if (currentBlock.GetContent(true).ToString() == rawSymbol)
@@ -101,7 +119,7 @@ namespace Prover.Engine
                         // (true in a disjunctive clause means true as a whole)
                         if (currentBlock.IsNegated == symbol.IsNegated)
                         {
-                            clauses.RemoveAt(i--);
+                            result.RemoveAt(i--);
                             return false;
                         }
 
@@ -117,32 +135,34 @@ namespace Prover.Engine
                         if (unaffectedBlock == currentBlock)
                         {
                             currentBlock.Isolate(true);
-                            clauses.RemoveAt(i--);
+                            result[i] = null;
                             return false;
                         }
 
-                        // a||b into b if remove a
                         if (isEOL)
                         {
+                            // a||b into b if remove a
                             unaffectedBlock.RemoveBack(true);
                             unaffectedBlock.RemoveBack(true);
                         }
                         else
                         {
+                            // a||b||c into a||c if remove b
                             unaffectedBlock.RemoveFront(true);
                             unaffectedBlock.RemoveFront(true);
                         }
 
                         if (root == currentBlock)
                         {
-                            clauses[i] = unaffectedBlock;
+                            result[i] = unaffectedBlock;
                             return false;
                         }
                     }
                     return true;
                 });
             }
-            return clauses;
+
+            return result;
         }
     }
 }

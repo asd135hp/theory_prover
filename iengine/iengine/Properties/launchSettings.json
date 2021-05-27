@@ -2,7 +2,7 @@
   "profiles": {
     "iengine": {
       "commandName": "Project",
-      "commandLineArgs": "dpll dpll_test.txt"
+      "commandLineArgs": "dpll dpll_test1.txt"
     }
   }
 }

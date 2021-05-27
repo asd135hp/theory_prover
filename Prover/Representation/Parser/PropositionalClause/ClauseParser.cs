@@ -57,6 +57,9 @@ namespace Prover.Representation.Parser.PropositionalClause
             var baseBlock = new Block();
             var currentBlock = baseBlock;
 
+            string currentLogic = "";
+            bool logicChanged = false;
+
             foreach (string symbol in simplifiedClause)
             {
                 switch (symbol)
@@ -70,6 +73,14 @@ namespace Prover.Representation.Parser.PropositionalClause
                         currentBlock = currentBlock
                             .SetContent(new PropositionalLogic(symbol))
                             .InsertBack(new Block());
+
+                        // for deciding whether to necessarily apply parentheses to the clause
+                        if (currentLogic != symbol)
+                        {
+                            if (currentLogic.Length != 0) logicChanged = true;
+                            currentLogic = symbol;
+                        }
+                        
                         break;
                     case PropositionalLogic.NEGATION:
                         currentBlock.SetNegation(true);
@@ -102,7 +113,7 @@ namespace Prover.Representation.Parser.PropositionalClause
 
             // an useless block is pushed in at the end of the list when parsing, removal is necessary
             baseBlock.RemoveFront();
-            return ApplyLogicPrecedence(baseBlock);
+            return logicChanged ? ApplyLogicPrecedence(baseBlock) : baseBlock;
         }
 
         /// <summary>

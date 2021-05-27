@@ -11,11 +11,15 @@ namespace IEngine.IO
         {
             ProcessContent(content);
 
-            if (method.ToLower() == "dpll") DPLL = new DPLL();
-            else GetInferenceEngine(method);
+            switch (method.ToLower())
+            {
+                case "dpll": DPLL = new DPLL(); break;
+                case "rs": DPLL = new ResolutionBasedSolver(); break;
+                default: GetInferenceEngine(method); break;
+            }
         }
 
-        private DPLL DPLL = null;
+        private readonly DPLL DPLL = null;
         private InferenceEngine _engine = null;
         private KnowledgeBase _kb;
         private string _ask;
