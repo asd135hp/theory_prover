@@ -188,16 +188,11 @@ namespace Prover.Representation.Parser.PropositionalClause
         /// <returns></returns>
         private void ToCNF(Block rootBlock)
         {
-            var result = new Engine.TruthTable(new UniqueSymbols(rootBlock)).CheckClause(rootBlock);
-            ulong count = 0;
-            while (true)
-            {
-                if (!result.ContainsKey(count)) break;
-                var model = result[count++];
-
-                // we only care about any models that generate a false value
-                if (!model.GetTruthBlock("")) Conjunctions.Add(GenerateCNFClause(model));
-            }
+            var tt = new Engine.TruthTable(new UniqueSymbols(rootBlock));
+            tt.IterateThroughModels(
+                null,
+                (model) => Conjunctions.Add(GenerateCNFClause(model)),
+                rootBlock);
         }
 
         #endregion
