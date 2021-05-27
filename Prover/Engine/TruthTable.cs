@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Prover.Representation.TruthTable;
 using Prover.Representation;
 using Prover.Representation.Parser;
